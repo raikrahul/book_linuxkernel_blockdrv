@@ -151,10 +151,10 @@ https://en.wikipedia.org/wiki/Hard_disk_drive
 Physically a hard disk is made of several platters.
 A platter consists of 512-byte sectors.
 
-In kernel's a point of view, the hard disk is an array of sector.
-So the mybrd driver should inform kernel how many sectors, where the sectors are.
+In kernel's a point of view, the hard disk is an array of many sectors.
+So the mybrd driver should inform kernel how many sectors, and, where the sectors are.
 And kernel passes the location and number of sectors to mybrd driver.
-If mybrd driver is for actual physical disk, it must have information about physical compinents of the disk and mapping table for sector and physical location on platters.
+If mybrd driver is for actual physical disk, it must have information about physical components  of the disk and mapping table for sector and physical location on platters.
 But we don't have any physical disk and our purpose is also not to make a driver for a certain hard disk.
 Our purpose is understanding how the kernel processes the IO and how to make a generic block driver.
 A block driver is not only physical disk driver but also virtual disk driver such as RAID device.
@@ -164,16 +164,17 @@ You must've implemented some user application to read/write file on the disk.
 You didn't specify any information about sector when you call read()/write() and other system calls.
 You only specify a file, offset and size.
 The filesystem layer and block layer of kernel calculates the address and number of sectors with the information from user.
-And kernel passes only sector information to driver.
+And kernel passes only sector information to driver. ( How to verify this? )
 The sector information is represented by struct bio.
 
 Following link show the structure of struct bio.
 
-http://www.makelinux.net/books/lkd2/ch13lev1sec3
+http://www.makelinux.net/books/lkd2/ch13lev1sec3 ( This link is dead ) 
 
 One bio object consists of several bio_vec that is representation of a segment.
 A segment indicates a page that includes data.
 Each bio_vec can have maximum 8 sectors because it should exist inside a page.
+
 
 It's a little bit confusing. But the code is simple. We need only information in the bio:
 * number of the first sector: bio->bi_iter.bi_sector
@@ -193,6 +194,8 @@ It usually does DMA transfer between disk and memory.
 And DMA transfer is done page by page.
 That's why bio_vec has information about page.
 One bio can be passed to the scatter-gatter DMA transfer.
+
+[ WE NEED MORE EXPLANATION ]
 
 Nevertheless actual data transfer is done in bio_for_each_segment() loop.
 And next step is finishing the bio object.
