@@ -2,7 +2,7 @@ _First, thank you for taking the time to read my book! I want to point out that 
 
 # Multi-queue block device in Linux kernel v4.4
 
-Several years ago, a new concept was merged into the block layer of Linux kernel. Before that every single block device has one queue for IO handling. Every processes inserted an IO request into the queue and block device driver extract a request from the queue. Yes, one queue was shared for many processes and for many processors.
+Several years ago, a new concept was merged into the block layer of Linux kernel. Before that every single block device has had one queue for IO handling. Every processes inserted an IO request into the queue and block device driver extract a request from the queue. Yes, one queue was shared for many processes and for many processors.
 
 When we used HDD mainly, a single queue did not matter. But these days SSD is so popular that a single queue design has been bottle-neck of performance. Therefore kernel developers implemented the multi-queue design.
 
