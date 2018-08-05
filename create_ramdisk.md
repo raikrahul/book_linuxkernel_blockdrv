@@ -16,13 +16,13 @@ source file: https://github.com/gurugio/mybrd/blob/ch03-ramdisk/mybrd.c
 reference: https://lwn.net/Articles/175432/
 
 Radix tree is used for page handling in Linux kernel. A driver allocates a page and adds into the radix tree with key value.
-Key value could be any number such as page number.
+Key value could be any number such as the page number.
 So we will use the number of sector stored in the page.
 When we need to read a sector, we will pass the number of sector to the radix tree and get a page which has data of the sector.
 
 The detail for implementation of the radix tree is beyond of this document.
 Please read "Understanding the Linux kernel" book that describe the implementation of the radix tree in detail.
-We will not care about the internal of the radix tree implementation, but only use it.
+We will not care about the internals of the radix tree implementation, but only use it.
 
 ### struct radix_tree_root
 
@@ -31,35 +31,35 @@ That is initialized with INIT_RADIX_TREE macro.
 
 ### radix_tree_preload()/_end() & radix_tree_insert()
 
-We can add a page into the radix tree via radix_tree_insert() function.
+We can add a page into the radix tree via ``radix_tree_insert()`` function.
 It's simple to use, only pass the pointer to the root, key value and pointer to the page to that function.
 Any unique value can be used for the key value.
 We will use the sector number for the key value because the sector number is unique in a disk.
 
-One more thing we need to notice is calling radix_tree_repload() and radix_tree_reload_end() function.
-It's not mandatory but common to call them.
-radix_tree_preload function helps radix_tree_insert succeed.
+One more thing we need to notice is calling ``radix_tree_repload()`` and ``radix_tree_reload_end()`` function.
+It's not mandatory,  but it's a common practice  to call them.
+``radix_tree_preload()`` function helps ``radix_tree_insert()`` succeed.
 How? We need to allocate memory for the tree node when we add a page into the radix tree.
 The tree node usually has the pointer to page, key value and so on.
-radix_tree_preload() allocates several tree nodes in advance, so that radix_tree_insert() does not fail to allocate memory.
-The reason we use the tree is that the tree is fast.
-But if we should allocate a node whenever we add a node into the tree, it would be much slower.
-So radix_tree_preload() allocates tree nodes in advance and stores the nodes at per-cpu space.
-So allocation the tree node in radix_tree_insert() cannot fail.
+``radix_tree_preload()`` allocates several tree nodes in advance, so that ``radix_tree_insert()`` does not fail to allocate memory.
+The reason we use the radix tree is that the tree operations to/from this tree are fast.
+But if we should allocate a node whenever we add a node into the tree, the further operations  would be much slower.
+So ``radix_tree_preload()`` allocates tree nodes in advance and stores the nodes at _per-cpu_ space.
+So allocation the tree node in ``radix_tree_insert()`` may not fail.
 
-If radix_tree_preload fails, we don't access the radix tree because there are very less memory.
-We don't need to try to lock the radix tree.
+If ``radix_tree_preload()`` fails, we don't access the radix tree because there is  very less amount of memory.
+We don't need to try to _lock the radix tree_.
 If we would lock the radix tree and fail to allocate memory, the kernel can make the process sleep.
-If a process hold the lock and sleep, it could generate deadlock.
-It's critical to system.
+If a process holds the lock and sleeps, it could generate deadlock.
+It's critical to system's responsiveness.
 
-So conclusion is calling radix_tree_preload() before calling radix_tree_insert().
-And radix_tree_preload_end() should be called after radix_tree_insert()..
+So the conclusion is to decide upon, calling ``radix_tree_preload()`` before calling ``radix_tree_insert()``.
+And ``radix_tree_preload_end()`` should be called after ``radix_tree_insert()``.
 
 The best way to check how a function is used is checking other code.
-Please find other code which calls radix_tree_preload().
+Please find other code which calls ``radix_tree_preload()``.
 Whenever you find a new kernel API and are not sure how to use it, you need to check other code.
-Document and comment could be out of date but code is always the latest and never be expired.
+Document and comment could be out of date but code is always the latest and would never be expired, if in the upstream branch.
 
 ### radix_tree_lookup()
 
@@ -72,21 +72,21 @@ It takes the pointer of a root node and key value and returns the pointer to the
 All IOs are handled sector by sector. Each IO has information about which and how many sectors it should be read/write.
 Therefore the key value for the radix-tree should be sector number.
 
-mybrd_lookup_page() function searches the tree and finds a page including the specified sector.
+``mybrd_lookup_page()`` function searches the tree and finds a page including the specified sector.
 It takes the sector number as an argument and returns the pointer to the page.
 
 Let's check the implementation.
-The first code is calling rcu_read_lock().
+The first code is calling ``rcu_read_lock()``.
 Describing rcu functions is far beyond this document.
 Please read following document if you want to know rcu in detail.
 
 https://lwn.net/Articles/262464/
 
-rcu_read_lock() allows multi-thread to access the tree concurrently.
-Since searching a page in the radix-tree doesn't modify the radix-tree, we can use rcu_read_lock() here.
+``rcu_read_lock()`` allows multi-thread to access the tree concurrently.
+Since searching for a page in the radix-tree doesn't modify the radix-tree, we can use ``rcu_read_lock()`` here.
 
 Next we create a key value with the sector number.
-One page is 4096-byte and one sector 512-byte, so 8-sector can be stored in one page.
+One page is 4096-bytes and one sector 512-bytes, so 8-sectors can be stored in one page.
 The first sector in a page should be used for the key creation.
 
 Following is an example of pair of sector number and key value.
@@ -106,45 +106,47 @@ Following is an example of pair of sector number and key value.
 
 Therefore we can make a equation: ``key_value = (sector_number * 512) / 4096``
 And that equation could be coded like: ``key = sector >> (12 - 9)``
-Page size could be differect on each platform.
+Page size could be different on each platform.
 So kernel defines a page size with PAGE_SIZE macro and bit size with PAGE_SHIFT.
 Final code would be: ``key = sector >> (PAGE_SHIFT - 9)``
 
-Then we call radix_tree_lookup() with the key value to find a page.
+[ We would need more explanation for the math here]
+
+Then we call ``radix_tree_lookup()`` with the key value to find a page.
 Finding a page can be failed.
-It means that any data is not written to the specified sector yet.
+It means that any data has not been  written to the specified sector yet.
 
 ### mybrd_insert_page()
 
-mybrd_inser_page() adds a page into the radix-tree.
+``mybrd_inser_page()`` adds a page into the radix-tree.
 
 It checks that the specified sector is already in the radix-tree.
 If there is not the specified sector, it allocated a page.
-It calls preload() and locks the spin-lock.
-Then it creates a key with the sector number and save the key in the index field of struct page.
-The page is added into the radix-tree with radix_tree_insert() function.
+It calls ``radix_tree_preload()`` and _locks the spin-lock_.
+Then it creates a key with the sector number and save the key in the index field of ``struct page``.
+The page is added into the radix-tree with ``radix_tree_insert()`` function.
 
 FYI, let's think about the page flag for a while.
-We are making a driver for IO handling, so we MUST use GFP_NOIO flag.
+We are making a driver for IO handling, so we MUST use ``GFP_NOIO`` flag.
 
 I'll explain why briefly.
 For example, let's assume that there is a function to allocate buffer_head for block IO.
-If that function is called when system doesn't have enough free memory, page reclaim mechanism in kernel will be activated.
-If there are many dirty pages, the page reclaiming will flush dirty pages into hard-disk and make free pages.
-For dirty page sync, kernel need to allocate buffer_head to write data into hard-disk.
+If that function is called when system doesn't have enough free memory, page reclaim mechanism in kernel is be activated.
+If there are many dirty pages, the page reclaiming mechanism will flush dirty pages into hard-disk and make free pages.
+For _dirty page sync_, kernel need to allocate buffer_head to write data into hard-disk.
 Therefore the function allocating buffer_head is called recursively.
-GFP_NOIO and GFP_NOFS flags allocate page without generating IO, so they can prevent this situation.
+``GFP_NOIO`` and ``GFP_NOFS`` flags allocate page without generating any I/O, so they can prevent this situation.
 
-In other words, if we don't use GFP_NOIO in block device driver, a driver is called recursively infinitely.
+In other words, if we don't use ``GFP_NOIO`` in block device driver, a driver is called recursively infinitely.
 
 ## data transferring between application and disk
 
 So far, we investigated some sub-routines for the radix-tree.
-Those sub-routines are used to transfer a sector to the radix-tree.
+Those sub-routines are used to _transfer a sector to the radix-tree_.
 Now let's see how we can pass arbitrary-size data to the radix-tree.
 
 And don't forget that the radix-tree is the representation of a ramdisk.
-Whenever we pass data to the radix-tree, it simulates passing data to ramdisk.
+Whenever we pass data to the radix-tree, it simulates passing data to the ramdisk.
 
 ### copy_from_user_to_mybrd()
 
@@ -159,14 +161,14 @@ Function arguments are
 Let's look into the source code.
 We can find a page in the radix-tree with the specified sector number.
 But we will not use the entire page.
-We will use only 512-byte of the page.
+We will use only 512-bytes of the page.
 So we need to calculate where to store data in the page.
-That is the target_offset value.
+That is the ``target_offset`` value.
 The sector location in the page is ``sector % 8``.
-``512 * (sector % 8)`` is the offset in the page because one sector is 512-byte.
+``512 * (sector % 8)`` is the _offset in the page_ because one sector is 512-bytes.
 
 The variable, copy, stores how many bytes will be copied.
-One bio can store maximum 4096 bytes because we have set the block size of the disk as 4096.
+One _bio can store maximum 4096 bytes_ because we have set the _block size of the disk as 4096 bytes_.
 Segment is stored in one block, so segment cannot be bigger than a block which is 4096 bytes.
 
 Please notice We have a special case.
@@ -174,37 +176,41 @@ If offset is 2048 and data size is 4096, we need to copy data into two pages.
 So we need to check the size of the first copy.
 
 Next we find a page including the specified sector.
-If that sector is not accessed before, finding the page have to be failed.
+If that sector is not accessed before, page find operation would have  to be failed.
 For that case, new pages should be added into the radix-tree.
 If data will be stored only in a page, only one page is added.
 If not, two page are added.
 
+[ We need a more accurate math explanation for this]
+
 Finally data in the kernel page is copied into radix-tree.
-Until now, we have only pages, so we should use kmap() to get kernel addresses of each page, and start memory copy.
+Until now, we have only pages, so we should use ``kmap()`` to get kernel addresses of each page, and start memory copy.
 
 ### copy_from_mybrd_to_user()
 
 This function gets data from ramdisk.
 Kernel already informs the page where data should be copied.
-Driver should find data inside of the radix-tree and copy data into the kernel page.
+Driver should _find data inside_ of the radix-tree and _copy data into the kernel page_.
 
 If the sector is not accessed before, there should not be any page.
 In that case, data must be zero.
-So we clear the kernel page with zero.
+So we clear the kernel page with zeros, using ``memset()``.
 
 ## bio handling
 
 ### add data handling at mybrd_make_request_fn()
 
 We finished to implement sub-routines.
-Now let's add data handling mybrd_make_request_fn() with the sub-routines.
+Now let's add data handling ``mybrd_make_request_fn()`` with the sub-routines.
 
-We already have bio_for_each_segment() loop.
-So we can add calling copy_from_mybrd_to_user() for data reading and copy_from_user_to_mybrd() for data writing.
+We already have ``bio_for_each_segment()`` loop.
+So we can add calling ``copy_from_mybrd_to_user()`` for data reading and ``copy_from_user_to_mybrd()`` for data writing.
 
 Please notice that we should increase the sector number.
-The bio has only the first sector number and bvec can have multi-sector data.
+The bio has only the first sector number and ``struct bvec`` can have multi-sector data.
 If data size of the bio is bigger than one sector size, we should increase the sector number in the loop.
+
+[ We need more explanations]
 
 ### cache handling
 
@@ -217,25 +223,27 @@ Please read following documents before going ahead.
 * http://www.linuxjournal.com/article/7105
 
 Driver handles user-requested data.
-The pages, driver should handle, are mapped to user address-space.
-They are user pages but kernel mapped them into kernel address-space and provide them to driver.
-Even-after kernel updates the pages. processor cache cannot be updated because pages are mapped to two address-spaces.
+The pages, driver should handle, are mapped to the user's address-space.
+They are user space  pages but kernel mapped them into kernel address-space and provided  them to the driver, our driver.
+Even-after kernel updates the pages,  the processor cache cannot be updated because pages are/have been/were mapped into two address-spaces.
 Therefore it's essential to invalidate cache.
 
-For reading disk, driver copies its data into user page and page contents are updated.
-After copy, driver should invalidate cache.
-If user read the page, the updated data in memory will be sent to processor cache and user can see the updated data.
+For reading disk, driver copies its data into user space page and page contents are updated.
+After copy, our driver should invalidate cache.
+If user read the page, the updated data in memory will be sent to processor cache and user can see the updated data. 
+
+[We need more explanations ]
 
 For writing disk, driver should access user's page.
 Before accessing, driver should invalidate cache to read the latest data in user page.
-As you can see in the driver source, driver calles cache invalidating function before copy_from_user_to_mybrd().
+As you can see in the driver source, driver calls cache invalidating function before calling ``copy_from_user_to_mybrd()``, using ``flush_dcache_page(page)``.
 
 Cache handling depends on hardware platform and cache policy.
-Above cache invalication would not be necessary for a certain platform.
+Above cache invalidation would not be necessary for a certain platform.
 
-Kernel always provides interfaces common for all platforms, so we should call cache handling without caring platform.
+Kernel always provides interfaces common for all platforms, so we should call cache handling without caring about the platform.
 
-## experiement for data read/write
+## experiment for data read/write
 
 ### check bio and data writing
 
@@ -273,15 +281,15 @@ Let's test data writing first.
 KB) copied, 0.015329 seconds, 521.9KB/s
 ```
 
-We can see two bios were generated.
-Sector numbers of each bio is 0 and 8.
+We can see two ``struct bio`` were generated.
+Sector numbers of each bio is 0 and 8, respectively.
 And each bio has 4096 data size.
 Each segment also has 4096 size, that means each bio has only one segment.
 
 There is a message that finding a page for sector 0 failed.
 And driver allocated a page and added it to the radix-tree.
 The page was used for storing data.
-Storing data is passed from /dev/urandom which is a device to generate random numbers.
+Storing data is passed from _/dev/urandom_ which is a device to generate random numbers.
 So driver shows the stored data are random values like d7 22.
 
 Let's check written data.
@@ -314,9 +322,9 @@ Let's check written data.
 4096 bytes (4.0KB) copied, 0.010485 seconds, 381.5KB/s
 ```
 
-We tried reading one page but read-ahead machanism read 32 sectors.
+We tried reading one page but read-ahead mechanism read 32 sectors.
 Driver could read 0-sector and its values were d7 22 that is the data we wrote before.
-Next page also has the data we wrote.
+Next _page also has the data_ we wrote.
 So we can confirm that data reading works fine.
 Other pages were zero because they weren't accessed yet.
 
@@ -574,9 +582,9 @@ asdf
 /mnt # 
 ```
 
-Creating and writing file did not generate any IO because filesystem stores file data into cache memory, not disk.
-We need to run sync command to generate IO.
-That command flush data in memory into disk.
+_Creating and writing file did not generate any I/O because_ the filesystem stores file data into cache memory, not disk.
+We need to run sync command, at least once, to generate I/O.
+That command flushes data present in memory onto the disk.
 
 ```
 /mnt # sync
@@ -638,9 +646,10 @@ asdf
 We can see some data was written into mybrd disk.
 We wrote "asdf".
 Ascii code of "asdf" is 0x61 0x73 0x64 0x66 that was shown in the middle of messages.
-Other values should be meta data of filesystem.
+Other values should be meta data entries of the filesystem.
 
-Following is the statistics of mybrd.
+Following is the statistics of ``` mybrd ```.
+
 ```
 / # cat /sys/block/mybrd/stat
       10        0      104       39       18        0      144       91        0       93       93

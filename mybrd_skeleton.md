@@ -1,11 +1,11 @@
 # skeleton code of mybrd
 
 Boring environment setup is done.
-Let us start coding mybrd driver.
+Let us start coding the mybrd driver.
 First we start with skeleton code to only help us to check whether the driver is loaded correctly.
 And this chapter will describe how to add our driver code into kernel so that the driver is built and run with kernel.
 We will start reading kernel source now.
-Please keep "Linux device driver" and "Understanding the Linux kernel" books close to you.
+Please keep the books, "Linux device driver" and "Understanding the Linux kernel" near you.
 
 ## add mybrd.c to kernel
 
@@ -165,7 +165,7 @@ Building drivers/block/mybrd.o is completed. And building bzImage is also comple
 
 ## skeleton code
 
-I saved source file in github. You can see full source with following link.
+I saved the source file on github. You can see full source with following link.
 
 https://github.com/gurugio/mybrd/blob/ch01-skel/mybrd.c
 
@@ -179,7 +179,7 @@ major.h and blkdev.h are, as shown by names, related to device number and block 
 
 ### mybrd_init/mybrd_exit
 
-mybrd_init() fundtion is the entry pointe of the driver. It's called when the drier is loaded and starts to execute.
+mybrd_init() fundtion is the entry point of the driver. It's called when the driver is loaded and it starts to execute.
 Every driver should have starting point that is registered by module_init() function.
 In mybrd.c file, you can see module_init() is called with mybrd_init function pointer at the end of the file.
 
@@ -227,4 +227,4 @@ So we can find my-ramdisk in the /proc/device file as following.
 
 But you should note that there is no device file in /dev directory.
 So far, we registered device and get the number from kernel but did not create device file.
-We will do that in the next chapter.
+We will do that in the following chapter.

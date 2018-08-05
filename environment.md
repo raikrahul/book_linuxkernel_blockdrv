@@ -1,7 +1,7 @@
 # prepare the environment
 
 Let us start with build v4.4 kernel and booting it with qemu emulator and busybox.
-We cannot avoid rebooting when we develope kernel driver because a tiny mis-behavior can kill the entire OS.
+We cannot avoid rebooting when we develop the  kernel driver because a tiny mis-behavior can kill the entire OS.
 So we should use qemu emulator to make a virtual machine.
 Even-if our driver do something wrong and kill the OS, we don't need to reboot our desktop.
 We will just kill a qemu process and run it again.
@@ -35,7 +35,7 @@ Just install qemu tool. It depends on the distribution you use. For example, you
 ```
 
 I will describe only a few options that are used in this document.
-Qemu has so many powerful features like other virtualization tools like Vmware and VirtualBox.
+Qemu has so many powerful features like other virtualization tools, for example,Vmware and VirtualBox.
 Please refer to qemu manual for the detail.
 
 # make boot filesystem, initramfs, with busybox
@@ -49,7 +49,7 @@ http://busybox.net
 Build can be done with following commands.
 
 ```
-# make defconf
+# make defconfig
 # make menuconfig
 # make
 ```
